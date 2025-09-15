@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Campus Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-cog"></i>
+                <span>Admin Panel</span>
+            </div>
+            <button class="admin-btn" onclick="window.location.href='/'">
+                <i class="fas fa-arrow-left"></i>
+                Back to Chat
+            </button>
+        </header>
+
+        {% if login_required %}
+        <!-- Login Panel -->
+        <div class="admin-login">
+            <div class="login-card">
+                <h2>Admin Login</h2>
+                <div class="login-form">
+                    <input type="password" id="adminPassword" placeholder="Enter admin password">
+                    <button id="loginButton" class="login-btn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Admin Controls -->
+        <div class="admin-controls">
+            <!-- Model Selection -->
+            <div class="control-section">
+                <h3>Model Management</h3>
+                <div class="model-controls">
+                    <select id="modelSelect" class="model-dropdown">
+                        <option value="">Select a model...</option>
+                        {% for model in models %}
+                        <option value="{{ model }}" {% if model == current_model %}selected{% endif %}>
+                            {{ model }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button id="loadModelBtn" class="load-btn" disabled>
+                        <i class="fas fa-download"></i>
+                        Load Model
+                    </button>
+                </div>
+                <div id="modelStatus" class="status-display"></div>
+            </div>
+
+            <!-- Knowledge Base Sync -->
+            <div class="control-section">
+                <h3>Knowledge Base</h3>
+                <div class="sync-controls">
+                    <button id="syncBtn" class="sync-btn">
+                        <i class="fas fa-sync-alt" id="syncIcon"></i>
+                        Sync Documents
+                    </button>
+                </div>
+                <div id="syncStatus" class="status-display"></div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="control-section">
+                <h3>Instructions</h3>
+                <div class="instructions">
+                    <p><strong>Models:</strong> Place .gguf files in the <code>models/</code> folder</p>
+                    <p><strong>Documents:</strong> Place .txt or .md files in the <code>data/</code> folder</p>
+                    <p><strong>Usage:</strong> Load a model first, then sync documents to update the knowledge base</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const isLoginRequired = {{ 'true' if login_required else 'false' }};
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

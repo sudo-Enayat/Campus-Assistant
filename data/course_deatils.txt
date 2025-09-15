@@ -1,0 +1,46 @@
+Course: Basic Electrical Engineering (YCS1001)
+
+Q1. What is the primary objective of the Basic Electrical Engineering course?
+A1. To teach the fundamentals of DC and AC circuits, transformers, and rotating machines.
+
+Q2. List two key learning outcomes of Basic Electrical Engineering course.
+A2.
+- Analyze the functioning of DC and AC circuits.
+- Evaluate the performance of transformers and rotating machines.
+
+Q3. Which network theorems are included in Module 1 of Basic Electrical Engineering course?
+A3. Superposition theorem, Thevenin’s theorem, Norton’s theorem, and Maximum power transfer theorem.
+
+Q4. What are the total contact hours and credits for Basic Electrical Engineering  course?
+A4. 36 contact hours and 3 credits.
+
+Q5. Name two recommended textbooks for Basic Electrical Engineering.
+A5.
+- D.P. Kothari and I.J. Nagrath, Basic Electrical Engineering, Tata-McGraw Hill.
+- E. Hughes, Electrical and Electronics Technology, Pearson Education.
+
+Course: Engineering Mathematics–I (YMT1001)
+
+Q1. What are the five modules covered in Engineering Mathematics–I?
+A1. Basic Calculus, Single-variable Calculus (Differentiation), Sequences and Series,
+    Multivariable Calculus (Differentiation), Multivariable Calculus (Integration).
+
+Q2. Which special functions are introduced in the first module of Engineering Mathematics–I?
+A2. Beta and Gamma functions.
+
+Q3. What is the total contact time and credit for Engineering Mathematics–I course?
+A3. 36 hours, 3 credits.
+
+Course: Programming for Problem Solving (YCS1002)
+
+Q1. What programming language is used to teach problem solving in "Programming for Problem Solving"  course?
+A1. The C programming language.
+
+Q2. Give two key learning outcomes of "Programming for Problem Solving" course.
+A2.
+- Design and implement algorithms for a given problem.
+- Analyze and evaluate algorithms for efficiency and correctness.
+
+Q3. What topics are covered under the “Array and String” module in "Programming for Problem Solving" course?
+A3. Declaration and initialization of one- and two-dimensional arrays,
+    string input/output functions, and string manipulation functions.
