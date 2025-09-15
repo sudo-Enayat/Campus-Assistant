@@ -178,11 +178,11 @@ def get_sync_status():
 
 @app.route('/api/chat/stream', methods=['POST'])
 def chat_stream():
-    """Handle chat messages with streaming response"""
+    """Handle chat messages with REAL streaming - REPLACE THIS ENTIRE FUNCTION"""
     global current_rag
     
     if not current_rag:
-        return jsonify({'error': 'No model loaded. Please contact admin to load a model first.'}), 400
+        return jsonify({'error': 'No model loaded'}), 400
     
     data = request.get_json()
     message = data.get('message', '').strip()
@@ -192,84 +192,23 @@ def chat_stream():
 
     def generate():
         try:
-            # Phase 1: Query processing
-            yield f"data: {json.dumps({'phase': 'thinking', 'message': 'Processing your question...'})}\n\n"
-            time.sleep(0.5)
+            # Quick status phases (shorter delays)
+            yield f"data: {json.dumps({'phase': 'thinking', 'message': 'Processing...'})}\n\n"
+            time.sleep(0.3)  # Reduced from 0.5
             
-            # Convert to English for retrieval only
-            english_query = current_rag.rewrite_query(message)
+            yield f"data: {json.dumps({'phase': 'searching', 'message': 'Finding info...'})}\n\n"
+            time.sleep(0.3)
             
-            # Phase 2: Searching knowledge base
-            yield f"data: {json.dumps({'phase': 'searching', 'message': 'Checking sources...'})}\n\n"
-            time.sleep(0.5)
+            yield f"data: {json.dumps({'phase': 'answering', 'message': 'Responding...'})}\n\n"
+            time.sleep(0.3)
             
-            search_results = current_rag.search_knowledge_base(english_query, top_k=3)
-            documents = search_results['documents']
-            sources = search_results['sources']
-            
-            # Phase 3: Generating answer
-            yield f"data: {json.dumps({'phase': 'answering', 'message': 'Formulating response...'})}\n\n"
-            
-            
-            if not documents:
-                # Let Gemma naturally handle "no info" response
-                prompt = f"""I don't have information about this topic in my knowledge base. Please respond to this user appropriately:
-
-User asked: {message}
-
-Response:"""
-                
-                response = current_rag._call_llm(prompt, max_tokens=100, temperature=0.3)
-                full_response = response if response else "I don't have information on this topic. Please contact a human for help."
-                
-                # Stream the fallback response
-                words = full_response.split()
-                streamed_text = ""
-                
-                for word in words:
-                    streamed_text += word + " "
-                    yield f"data: {json.dumps({'phase': 'streaming', 'partial_response': streamed_text.strip()})}\n\n"
-                    time.sleep(0.05)
-                
-                yield f"data: {json.dumps({'phase': 'complete', 'response': full_response, 'sources': [], 'context_used': 0})}\n\n"
-                return
-            
-            # Generate answer with context - use original message, not English query
-            context = "\n\n".join(documents)
-            unique_sources = list(set(sources))
-            
-            answer_prompt = f"""You are a helpful campus assistant. Use the context below to answer the user's question.
-
-Context:
-{context}
-
-User's question: {message}
-
-Instructions:
-- Use only the information from the context above
-- If the context doesn't have enough information, say you don't have that information
-- replay in user's original language, 
-if it's in hindi reply in hindi, if in bengali reply in bengali, english if english, hindlish to hindlish....so on .
-Answer:"""
-            
-            # Generate and stream the response
-            full_response = current_rag._call_llm(answer_prompt, max_tokens=300, temperature=0.3)
-            
-            # Stream response word by word
-            words = full_response.split()
-            streamed_text = ""
-            
-            for word in words:
-                streamed_text += word + " "
-                yield f"data: {json.dumps({'phase': 'streaming', 'partial_response': streamed_text.strip()})}\n\n"
-                time.sleep(0.05)
-            
-            # Send final complete response
-            yield f"data: {json.dumps({'phase': 'complete', 'response': full_response, 'sources': unique_sources, 'context_used': len(documents)})}\n\n"
+            # REAL STREAMING - Use the new method
+            for result in current_rag.generate_answer_stream(message):
+                yield f"data: {json.dumps(result)}\n\n"
             
         except Exception as e:
-            print(f"Chat stream error: {e}")
-            yield f"data: {json.dumps({'phase': 'error', 'error': 'Sorry, I encountered an error processing your request.'})}\n\n"
+            print(f"Stream error: {e}")
+            yield f"data: {json.dumps({'phase': 'error', 'error': 'Processing error'})}\n\n"
 
     return Response(generate(), mimetype='text/plain', headers={'Cache-Control': 'no-cache'})
 
@@ -279,4 +218,4 @@ if __name__ == '__main__':
     print("🚀 Starting Campus Chat Server...")
     print("🌐 Access at: http://localhost:5000")
     print("🔧 Admin panel: http://localhost:5000/admin")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

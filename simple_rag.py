@@ -9,11 +9,12 @@ class SimpleCampusRAG:
         print("🔄 Loading Gemma model...")
         self.llm = Llama(
             model_path=model_path,
-            n_ctx=2048,
-            n_threads=4,
-            verbose=False
+            n_ctx=1024,
+            n_threads=6,
+            verbose=False,
+            n_gpu_layers=0
         )
-        print("✅ Gemma loaded!")
+        print("✅ Model loaded!")
         
         print("🔄 Loading embeddings model...")
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -26,7 +27,7 @@ class SimpleCampusRAG:
         self.data_folder.mkdir(exist_ok=True)
 
     def _call_llm(self, prompt, max_tokens=256, temperature=0.0, stop=None):
-        """Helper method to call Gemma LLM"""
+        """Helper method to call LLM"""
         try:
             resp = self.llm(
                 prompt,
@@ -48,19 +49,22 @@ class SimpleCampusRAG:
             return ""
 
     def rewrite_query(self, user_query):
-        """Rewrite query to English for better retrieval (documents are English-only)"""
-        prompt = f"""Please convert this query to clear, well-formed English for document search purposes. Fix any spelling/grammar and expand abbreviations:
+        """Quick query rewrite for retrieval"""
+        # Skip rewriting for simple English queries
+        if len(user_query.split()) <= 5 and user_query.encode('utf-8').isascii():
+            return user_query
+        
+        prompt = f"""Convert to English search terms: "{user_query}"
 
-Original query: "{user_query}"
-
-English search query:"""
+    English:"""
 
         try:
-            response = self._call_llm(prompt, max_tokens=100, temperature=0.1)
+            response = self._call_llm(prompt, max_tokens=50, temperature=0.0)  
             return response.strip() if response.strip() else user_query
         except Exception as e:
             print(f"Query rewrite error: {e}")
             return user_query
+
 
     def search_knowledge_base(self, english_query, top_k=3):
         """Search for relevant documents using English query"""
@@ -163,66 +167,137 @@ English search query:"""
         print("✅ Knowledge base built successfully!")
 
     def generate_answer(self, user_query):
-        """Generate answer using RAG pipeline - let Gemma handle language naturally"""
+        """Generate answer using RAG pipeline - optimized for speed"""
         try:
-            # Step 1: Convert query to English for retrieval (since docs are English)
+            # Step 1: Convert query to English for retrieval
             english_query = self.rewrite_query(user_query)
             
-            print(f"🔄 Original: {user_query}")
             print(f"🔄 Search query: {english_query}")
             
-            # Step 2: Search knowledge base using English query
-            search_results = self.search_knowledge_base(english_query, top_k=3)
+            # Step 2: Search knowledge base - get fewer, more relevant results
+            search_results = self.search_knowledge_base(english_query, top_k=2)  # Reduced from 3
             documents = search_results['documents']
             sources = search_results['sources']
             
-            # Step 3: Generate answer using original query + English context
+            # Step 3: Generate answer
             if not documents:
-                # Let Gemma naturally respond to "no info" in user's language
-                prompt = f"""I don't have information about this topic in my knowledge base. Please respond to this user appropriately:
-
-User asked: {user_query}
-
-Response:"""
-                
-                answer = self._call_llm(prompt, max_tokens=100, temperature=0.3)
+                # Quick fallback - no LLM call needed
                 return {
-                    'answer': answer if answer else "I don't have information on this topic. Please contact a human for help.",
+                    'answer': "I don't have information on this topic. Please contact the campus office for help.",
                     'sources': [],
                     'context_used': 0
                 }
             
-            # Use English context but original user query - let Gemma match the language naturally
-            context = "\n\n".join(documents)
+            # Limit context size - only use first 800 characters from documents
+            context_parts = []
+            total_chars = 0
+            for doc in documents:
+                if total_chars + len(doc) > 800:  # Limit total context
+                    remaining = 800 - total_chars
+                    if remaining > 100:  # Only add if meaningful chunk remains
+                        context_parts.append(doc[:remaining] + "...")
+                    break
+                context_parts.append(doc)
+                total_chars += len(doc)
+            
+            context = "\n\n".join(context_parts)
             unique_sources = list(set(sources))
             
-            answer_prompt = f"""You are a helpful campus assistant. Use the context below to answer the user's question.
+            # Shorter, more direct prompt
+            answer_prompt = f"""Answer this question using the context provided. Be concise.
 
-Context:
-{context}
+    Context: {context}
 
-User's question: {user_query}
+    Question: {user_query}
 
-Instructions:
-- Use only the information from the context above
-- If the context doesn't have enough information, say you don't have that information
-- Be helpful and concise
-- reply in user's original language
-
-Answer:"""
+    Answer:"""
             
-            answer = self._call_llm(answer_prompt, max_tokens=300, temperature=0.3)
+            # Reduced max_tokens for faster generation
+            answer = self._call_llm(answer_prompt, max_tokens=150, temperature=0.2)  # Was 300 tokens
             
             return {
                 'answer': answer if answer else "I couldn't generate a response.",
                 'sources': unique_sources,
-                'context_used': len(documents)
+                'context_used': len(context_parts)
             }
             
         except Exception as e:
             print(f"Generate answer error: {e}")
             return {
-                'answer': "I encountered an error while processing your question. Please try again.",
+                'answer': "Error processing your question.",
                 'sources': [],
                 'context_used': 0
+            }
+
+
+    def generate_answer_stream(self, user_query):
+        """Generate streaming answer"""
+        try:
+            # Quick query processing
+            english_query = self.rewrite_query(user_query)
+            search_results = self.search_knowledge_base(english_query, top_k=2)
+            documents = search_results['documents']
+            sources = search_results['sources']
+            
+            if not documents:
+                yield {
+                    'phase': 'complete',
+                    'response': "I don't have information on this topic. Please contact the campus office for help.",
+                    'sources': [],
+                    'context_used': 0
+                }
+                return
+            
+            # Prepare limited context for speed
+            context_parts = []
+            total_chars = 0
+            for doc in documents:
+                if total_chars + len(doc) > 600:  # Limit context size
+                    break
+                context_parts.append(doc)
+                total_chars += len(doc)
+            
+            context = "\n\n".join(context_parts)
+            unique_sources = list(set(sources))
+            
+            # Short prompt for speed
+            answer_prompt = f"""Answer concisely using the context:
+
+    Context: {context}
+
+    Question: {user_query}
+
+    Answer:"""
+            
+            # REAL STREAMING - token by token from llama-cpp
+            full_response = ""
+            for token in self.llm(
+                answer_prompt,
+                max_tokens=120,        # Shorter for speed
+                temperature=0.2,
+                stream=True,           # This enables real streaming!
+                stop=["\n\n", "Question:", "Context:"]
+            ):
+                token_text = token['choices'][0]['text']
+                full_response += token_text
+                
+                # Yield each token as it comes
+                yield {
+                    'phase': 'streaming',
+                    'partial_response': full_response.strip()
+                }
+            
+            # Final complete response
+            yield {
+                'phase': 'complete',
+                'response': full_response.strip(),
+                'sources': unique_sources,
+                'context_used': len(context_parts)
+            }
+            
+        except Exception as e:
+            print(f"Stream error: {e}")
+            yield {
+                'phase': 'error',
+                'error': 'Error processing your question.'
             }
