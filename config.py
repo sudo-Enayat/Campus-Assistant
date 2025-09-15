@@ -14,9 +14,9 @@ class Config:
     TEMPERATURE = 0.3
     
     # RAG settings
-    CHUNK_SIZE = 500
+    CHUNK_SIZE = 200
     CHUNK_OVERLAP = 50
-    TOP_K_RETRIEVAL = 3
+    TOP_K_RETRIEVAL = 2
     
     # Supported languages
     SUPPORTED_LANGUAGES = {

@@ -26,7 +26,7 @@ class SimpleCampusRAG:
         self.data_folder = Path(data_folder)
         self.data_folder.mkdir(exist_ok=True)
 
-    def _call_llm(self, prompt, max_tokens=256, temperature=0.0, stop=None):
+    def _call_llm(self, prompt, max_tokens=256, temperature=0.2, stop=None):
         """Helper method to call LLM"""
         try:
             resp = self.llm(
@@ -100,7 +100,7 @@ class SimpleCampusRAG:
             print(f"Search error: {e}")
             return {'documents': [], 'sources': []}
 
-    def split_text(self, text, chunk_size=500, overlap=50):
+    def split_text(self, text, chunk_size=200, overlap=50):
         chunks = []
         start = 0
         while start < len(text):
@@ -167,7 +167,7 @@ class SimpleCampusRAG:
         print("✅ Knowledge base built successfully!")
 
     def generate_answer(self, user_query):
-        """Generate answer using RAG pipeline - optimized for speed"""
+        """Generate answer using RAG pipeline - optimized"""
         try:
             # Step 1: Convert query to English for retrieval
             english_query = self.rewrite_query(user_query)
@@ -188,12 +188,12 @@ class SimpleCampusRAG:
                     'context_used': 0
                 }
             
-            # Limit context size - only use first 800 characters from documents
+            # Limit context size - only use first 400 characters from documents
             context_parts = []
             total_chars = 0
             for doc in documents:
                 if total_chars + len(doc) > 800:  # Limit total context
-                    remaining = 800 - total_chars
+                    remaining = 400 - total_chars
                     if remaining > 100:  # Only add if meaningful chunk remains
                         context_parts.append(doc[:remaining] + "...")
                     break
@@ -213,7 +213,7 @@ class SimpleCampusRAG:
     Answer:"""
             
             # Reduced max_tokens for faster generation
-            answer = self._call_llm(answer_prompt, max_tokens=150, temperature=0.2)  # Was 300 tokens
+            answer = self._call_llm(answer_prompt, max_tokens=150, temperature=0.3)  
             
             return {
                 'answer': answer if answer else "I couldn't generate a response.",
@@ -230,29 +230,14 @@ class SimpleCampusRAG:
             }
 
 
-    def generate_answer_stream(self, user_query):
-        """Generate streaming answer"""
+    def generate_answer_stream(self, user_query, documents, sources):
+        """Generate streaming answer with real token-by-token output"""
         try:
-            # Quick query processing
-            english_query = self.rewrite_query(user_query)
-            search_results = self.search_knowledge_base(english_query, top_k=2)
-            documents = search_results['documents']
-            sources = search_results['sources']
-            
-            if not documents:
-                yield {
-                    'phase': 'complete',
-                    'response': "I don't have information on this topic. Please contact the campus office for help.",
-                    'sources': [],
-                    'context_used': 0
-                }
-                return
-            
-            # Prepare limited context for speed
+            # Prepare context (limited size for speed)
             context_parts = []
             total_chars = 0
             for doc in documents:
-                if total_chars + len(doc) > 600:  # Limit context size
+                if total_chars + len(doc) > 600:
                     break
                 context_parts.append(doc)
                 total_chars += len(doc)
@@ -260,44 +245,61 @@ class SimpleCampusRAG:
             context = "\n\n".join(context_parts)
             unique_sources = list(set(sources))
             
-            # Short prompt for speed
             answer_prompt = f"""Answer concisely using the context:
 
     Context: {context}
+
+    if context is empty
+        reply: "sorry, I don't have that information."
 
     Question: {user_query}
 
     Answer:"""
             
-            # REAL STREAMING - token by token from llama-cpp
+            # Real token-by-token streaming from llama-cpp
             full_response = ""
-            for token in self.llm(
-                answer_prompt,
-                max_tokens=120,        # Shorter for speed
-                temperature=0.2,
-                stream=True,           # This enables real streaming!
-                stop=["\n\n", "Question:", "Context:"]
-            ):
-                token_text = token['choices'][0]['text']
-                full_response += token_text
+            
+            try:
+                # Use llama-cpp's streaming capability
+                for token in self.llm(
+                    answer_prompt,
+                    max_tokens=512,
+                    temperature=0.0,
+                    stream=True,  # This enables real streaming
+                    stop=["\n\n", "Question:", "Context:"]
+                ):
+                    token_text = token['choices'][0]['text']
+                    full_response += token_text
+                    
+                    # Emit each token as it's generated
+                    yield {
+                        'phase': 'streaming',
+                        'partial_response': full_response.strip()
+                    }
                 
-                # Yield each token as it comes
+                # Final complete response
                 yield {
-                    'phase': 'streaming',
-                    'partial_response': full_response.strip()
+                    'phase': 'complete',
+                    'response': full_response.strip(),
+                    'sources': unique_sources,
+                    'context_used': len(context_parts)
+                }
+                
+            except Exception as streaming_error:
+                print(f"Streaming error, falling back to batch: {streaming_error}")
+                # Fallback to non-streaming if streaming fails
+                answer = self._call_llm(answer_prompt, max_tokens=120, temperature=0.2)
+                
+                yield {
+                    'phase': 'complete',
+                    'response': answer,
+                    'sources': unique_sources,
+                    'context_used': len(context_parts)
                 }
             
-            # Final complete response
-            yield {
-                'phase': 'complete',
-                'response': full_response.strip(),
-                'sources': unique_sources,
-                'context_used': len(context_parts)
-            }
-            
         except Exception as e:
-            print(f"Stream error: {e}")
+            print(f"Generate stream error: {e}")
             yield {
                 'phase': 'error',
-                'error': 'Error processing your question.'
+                'error': 'Error generating response'
             }

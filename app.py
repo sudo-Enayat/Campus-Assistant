@@ -178,7 +178,7 @@ def get_sync_status():
 
 @app.route('/api/chat/stream', methods=['POST'])
 def chat_stream():
-    """Handle chat messages with REAL streaming - REPLACE THIS ENTIRE FUNCTION"""
+    """Handle chat messages with real progress streaming"""
     global current_rag
     
     if not current_rag:
@@ -192,18 +192,33 @@ def chat_stream():
 
     def generate():
         try:
-            # Quick status phases (shorter delays)
-            yield f"data: {json.dumps({'phase': 'thinking', 'message': 'Processing...'})}\n\n"
-            time.sleep(0.3)  # Reduced from 0.5
+            # Phase 1: Query processing
+            yield f"data: {json.dumps({'phase': 'thinking', 'message': 'Processing your question...'})}\n\n"
             
-            yield f"data: {json.dumps({'phase': 'searching', 'message': 'Finding info...'})}\n\n"
-            time.sleep(0.3)
+            english_query = current_rag.rewrite_query(message)
             
-            yield f"data: {json.dumps({'phase': 'answering', 'message': 'Responding...'})}\n\n"
-            time.sleep(0.3)
+            # Phase 2: Search with progress updates
+            def search_progress(msg):
+                yield f"data: {json.dumps({'phase': 'searching', 'message': msg})}\n\n"
             
-            # REAL STREAMING - Use the new method
-            for result in current_rag.generate_answer_stream(message):
+            yield f"data: {json.dumps({'phase': 'searching', 'message': 'Searching knowledge base...'})}\n\n"
+            search_results = current_rag.search_knowledge_base(english_query, top_k=2)
+            
+            documents = search_results['documents']
+            sources = search_results['sources']
+            
+            # Phase 3: Answer generation
+            yield f"data: {json.dumps({'phase': 'answering', 'message': 'Generating response...'})}\n\n"
+            
+            
+            # REAL WORK: Generate response
+            if not documents:
+                fallback = "I don't have information on this topic. Please contact the campus office for help."
+                yield f"data: {json.dumps({'phase': 'complete', 'response': fallback, 'sources': [], 'context_used': 0})}\n\n"
+                return
+            
+            # Real streaming generation
+            for result in current_rag.generate_answer_stream(message, documents, sources):
                 yield f"data: {json.dumps(result)}\n\n"
             
         except Exception as e:
@@ -211,6 +226,7 @@ def chat_stream():
             yield f"data: {json.dumps({'phase': 'error', 'error': 'Processing error'})}\n\n"
 
     return Response(generate(), mimetype='text/plain', headers={'Cache-Control': 'no-cache'})
+
 
 
 
