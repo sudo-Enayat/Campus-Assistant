@@ -1,4 +1,3 @@
-
 🏫 Campus Assistant - Multilingual RAG Chatbot
 
 A self-hosted, multilingual conversational assistant designed for college campuses. This AI-powered chatbot answers student queries about fees, admissions, courses,semester and campus policies using a local knowledge base of official documents.
@@ -250,8 +249,6 @@ Admin panel not accessible
     Solution: Check the URL (http://localhost:5000/admin) and password
 
 Performance Tips
-
-    Use SSD storage for faster model loading
 
     Increase RAM for better performance with larger models
 
