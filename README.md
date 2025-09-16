@@ -1,6 +1,6 @@
 🏫 Campus Assistant - Multilingual RAG Chatbot
 
-A self-hosted, multilingual conversational assistant designed for college campuses. This AI-powered chatbot answers student queries about fees, admissions, courses, and campus policies using a local knowledge base of official documents.
+A self-hosted, multilingual conversational assistant designed for college campuses. This AI-powered chatbot answers student queries about fees, admissions, courses,semester and campus policies using a local knowledge base of official documents.
 
 ✨ Features
 
