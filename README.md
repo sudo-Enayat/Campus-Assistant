@@ -211,7 +211,7 @@ Requirements.txt
 
 Adding New Languages
 
-  The system automatically supports any language that Gemma can understand. No additional configuration needed.
+  The system automatically supports any language that the Gemma can understand. No additional needed configuration .
   
   Just add new LLMs to model folder and get all the languages it can understand without additional setup.
 
