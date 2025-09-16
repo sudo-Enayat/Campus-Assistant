@@ -1,3 +1,4 @@
+
 🏫 Campus Assistant - Multilingual RAG Chatbot
 
 A self-hosted, multilingual conversational assistant designed for college campuses. This AI-powered chatbot answers student queries about fees, admissions, courses,semester and campus policies using a local knowledge base of official documents.
@@ -211,7 +212,7 @@ Requirements.txt
 
 Adding New Languages
 
-  The system automatically supports any language that the Gemma can understand. No additional needed configuration .
+  The system automatically supports any language that the your chosen LLM can understand. No additional needed configuration .
   
   Just add new LLMs to model folder and get all the languages it can understand without additional setup.
 
