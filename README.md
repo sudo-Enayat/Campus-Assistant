@@ -213,7 +213,7 @@ Adding New Languages
 
   The system automatically supports any language that Gemma can understand. No additional configuration needed.
   
-  Just add new LLMs to model folder and get all the languages it can understand without additional setup
+  Just add new LLMs to model folder and get all the languages it can understand without additional setup.
 
 Performance Optimization
 
